@@ -5,4 +5,4 @@ requests==2.31.0
 dnspython==2.6.1
 python-whois==0.9.4
 shodan==1.31.0
-theHarvester==4.6.0
+urllib3==2.2.1
