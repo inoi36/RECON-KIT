@@ -83,6 +83,8 @@
     .tool-item:hover{color:var(--text);border-left-color:var(--muted);background:rgba(200,149,42,.03);}
     .tool-item.active{color:var(--amber);border-left-color:var(--amber);background:rgba(200,149,42,.06);}
     .tool-item.dim{opacity:.2;cursor:default;pointer-events:none;}
+    .tool-item.unavail{opacity:.5;}
+    .tool-item.unavail::after{content:"TEMP";font-size:7px;color:var(--amber);letter-spacing:1px;margin-left:auto;border:1px solid rgba(200,149,42,0.3);padding:1px 4px;}
     .t-icon{font-size:11px;min-width:16px;text-align:center;opacity:.7;}
 
     /* ── MAIN ── */
@@ -327,8 +329,20 @@ function ToolForm({tool,onResult,loading,setLoading}){
         onChange={e=>set(id,type==="number"?parseInt(e.target.value):e.target.value)}/>
     </div>
   );
+  const UNAVAILABLE = (name) => (
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(200,149,42,0.05)",border:"1px solid rgba(200,149,42,0.2)",marginTop:4}}>
+      <span style={{color:"var(--amber)",fontFamily:"Share Tech Mono,monospace",fontSize:11,letterSpacing:2}}>
+        ⚠ {name} — TEMPORARILY UNAVAILABLE ON CLOUD
+      </span>
+      <span style={{color:"var(--text3)",fontFamily:"Share Tech Mono,monospace",fontSize:9,letterSpacing:1}}>
+        · available in local setup
+      </span>
+    </div>
+  );
   const forms={
-    nmap:<><div className="form-row"><Fld label="Target" id="target" ph="192.168.1.1 or example.com"/><Fld label="Flags" id="flags" ph="-sV -sC" dv="-sV -sC"/></div><Btn l="INITIATE SCAN" ll="SCANNING..." fn={()=>run("/api/nmap",{target:f.target,flags:f.flags||"-sV -sC"})}/></>,
+    nmap:<>{UNAVAILABLE("NMAP SCANNER")}</>,
+    traceroute:<>{UNAVAILABLE("TRACEROUTE")}</>,
+    whois:<>{UNAVAILABLE("WHOIS LOOKUP")}</>,
     shodan:<><div className="form-row"><Fld label="Search Query" id="query" ph="apache port:80 country:IN"/><Fld label="API Key" id="api_key" type="password" ph="Shodan API Key" dv="u5i4Han5YrvMZQLb3Q63OtJAicYkmXeW"/></div><Btn l="SEARCH SHODAN" ll="SEARCHING..." fn={()=>run("/api/shodan",{query:f.query,api_key:f.api_key||"u5i4Han5YrvMZQLb3Q63OtJAicYkmXeW"})}/></>,
     whois:<><div className="form-row"><Fld label="Domain" id="domain" ph="example.com"/></div><Btn l="WHOIS QUERY" ll="QUERYING..." fn={()=>run("/api/whois",{domain:f.domain})}/></>,
     dns:<><div className="form-row"><Fld label="Domain" id="domain" ph="example.com"/><div className="form-group" style={{maxWidth:150}}><label className="form-label">Record Type</label><select className="form-select" onChange={e=>set("record_type",e.target.value)}>{["A","AAAA","MX","NS","TXT","CNAME","SOA","PTR"].map(r=><option key={r}>{r}</option>)}</select></div></div><Btn l="DNS RESOLVE" ll="RESOLVING..." fn={()=>run("/api/dns",{domain:f.domain,record_type:f.record_type||"A"})}/></>,
@@ -434,7 +448,7 @@ function Sidebar({mode,setMode,selected,onSelect,isOpen,onClose}){
         <div className="cat-label">{cat}</div>
         {TOOLS.filter(t=>t.cat===cat).map(t=>(
           <div key={t.id}
-            className={`tool-item${mode==="all"?" dim":""}${selected?.id===t.id&&mode==="single"?" active":""}`}
+            className={`tool-item${mode==="all"?" dim":""}${selected?.id===t.id&&mode==="single"?" active":""}${["nmap","traceroute","whois"].includes(t.id)?" unavail":""}`}
             onClick={()=>{if(mode==="single"){onSelect(t);if(onClose)onClose();}}}>
             <span className="t-icon">{t.icon}</span><span>{t.name}</span>
           </div>
