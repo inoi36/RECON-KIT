@@ -86,6 +86,26 @@ def root():
 
 @app.post("/api/nmap")
 def run_nmap(req: NmapRequest):
+    import os
+    if os.environ.get("IS_CLOUD","false").lower()=="true":
+        return {"output": """Nmap Scanner — Not Available on Cloud
+============================================================
+
+  Nmap requires direct system access and cannot run on
+  cloud servers (Render, Railway, Heroku etc.)
+
+  To use Nmap, run ReconKit locally:
+
+  1. Install Nmap:
+     Windows : https://nmap.org/download.html
+     Linux   : sudo apt install nmap
+     macOS   : brew install nmap
+
+  2. Run backend locally:
+     cd backend
+     uvicorn main:app --host 0.0.0.0 --port 8000
+
+  3. Open frontend/index.html in browser"""}
     try:
         import platform, os
         nmap_path = "nmap"
@@ -152,21 +172,67 @@ def run_whois(req: WhoisRequest):
         _d = req.domain.strip()
         _d = _re2.sub(r"^https?://", "", _d).split("/")[0]
         _d = _re2.sub(r"^www[.]", "", _d)
-        w = whois_lib.whois(_d)
+
         output = f"WHOIS Information for: {_d}\n"
         output += "=" * 60 + "\n\n"
-        for key, value in w.items():
-            if not value:
-                continue
-            if isinstance(value, list):
-                parts = []
-                for v in value:
-                    parts.append(v.strftime("%Y-%m-%d %H:%M UTC") if hasattr(v, "strftime") else str(v))
-                value = ", ".join(parts)
-            elif hasattr(value, "strftime"):
-                value = value.strftime("%Y-%m-%d %H:%M UTC")
-            output += f"  {key:<25}: {value}\n"
-        return {"output": output}
+
+        # Primary: RDAP API (works on all cloud servers, no port 43 needed)
+        try:
+            rdap = requests.get(
+                f"https://rdap.org/domain/{_d}",
+                timeout=15,
+                headers={"Accept": "application/json"}
+            )
+            if rdap.status_code == 200:
+                data = rdap.json()
+                # Extract useful fields from RDAP response
+                output += f"  {'Domain':<25}: {data.get('ldhName', _d)}\n"
+                # Status
+                status = [s.get('value','') if isinstance(s,dict) else str(s) for s in data.get('status',[])]
+                if status: output += f"  {'Status':<25}: {', '.join(status)}\n"
+                # Dates
+                for ev in data.get('events', []):
+                    act = ev.get('eventAction','')
+                    date = ev.get('eventDate','')[:10]
+                    if act == 'registration': output += f"  {'Created':<25}: {date}\n"
+                    elif act == 'expiration': output += f"  {'Expires':<25}: {date}\n"
+                    elif act == 'last changed': output += f"  {'Updated':<25}: {date}\n"
+                # Nameservers
+                ns = [n.get('ldhName','') for n in data.get('nameservers',[])]
+                if ns: output += f"  {'Name Servers':<25}: {', '.join(ns)}\n"
+                # Registrar
+                for entity in data.get('entities', []):
+                    roles = entity.get('roles', [])
+                    vcard = entity.get('vcardArray', [])
+                    name = ''
+                    if vcard and len(vcard) > 1:
+                        for field in vcard[1]:
+                            if field[0] == 'fn': name = field[3]
+                    if 'registrar' in roles and name:
+                        output += f"  {'Registrar':<25}: {name}\n"
+                    if 'registrant' in roles and name:
+                        output += f"  {'Registrant':<25}: {name}\n"
+                return {"output": output}
+        except Exception:
+            pass
+
+        # Fallback: python-whois library
+        try:
+            w = whois_lib.whois(_d)
+            for key, value in w.items():
+                if not value: continue
+                if isinstance(value, list):
+                    parts = [v.strftime("%Y-%m-%d %H:%M UTC") if hasattr(v,"strftime") else str(v) for v in value]
+                    value = ", ".join(parts)
+                elif hasattr(value, "strftime"):
+                    value = value.strftime("%Y-%m-%d %H:%M UTC")
+                output += f"  {key:<25}: {value}\n"
+            return {"output": output}
+        except Exception as e2:
+            raise HTTPException(status_code=500, detail=f"WHOIS lookup failed: {str(e2)}")
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -727,6 +793,21 @@ def run_banner(req: BannerRequest):
 
 @app.post("/api/traceroute")
 def run_traceroute(req: TracerouteRequest):
+    import os
+    if os.environ.get("IS_CLOUD","false").lower()=="true":
+        return {"output": """Traceroute — Not Available on Cloud
+============================================================
+
+  Traceroute requires direct network access and cannot
+  run on cloud servers.
+
+  To use Traceroute, run ReconKit locally:
+
+  1. Run backend locally:
+     cd backend
+     uvicorn main:app --host 0.0.0.0 --port 8000
+
+  2. Open frontend/index.html in browser"""}
     try:
         if platform.system() == "Windows":
             cmd = ["tracert", "-d", "-h", "15", "-w", "1000", req.host]
