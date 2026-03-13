@@ -311,8 +311,7 @@ function BootScreen({onDone}){
 function ToolForm({tool,onResult,loading,setLoading}){
   const [f,setF]=useState({});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
-  // Reset form and loading when tool changes
-  useEffect(()=>{ setF({}); setLoading(false); },[tool?.id]);
+
   const run=async(ep,body)=>{
     setLoading(true);
     try{const d=await callAPI(ep,body);onResult({ok:true,tool:tool.name,out:d.output});}
@@ -327,8 +326,9 @@ function ToolForm({tool,onResult,loading,setLoading}){
   const Fld=({label,id,ph,type="text",dv,sty})=>(
     <div className="form-group" style={sty}>
       <label className="form-label">{label}</label>
-      <input className="form-input" type={type} placeholder={ph} defaultValue={dv}
-        onChange={e=>set(id,type==="number"?parseInt(e.target.value):e.target.value)}/>
+      <input className="form-input" type={type} placeholder={ph}
+        value={f[id]!==undefined ? f[id] : (dv||"")}
+        onChange={e=>set(id,type==="number"?parseInt(e.target.value)||0:e.target.value)}/>
     </div>
   );
   const UNAVAILABLE = (name) => (
@@ -550,7 +550,7 @@ function App(){
                 <div className="tool-name">{tool.name}</div>
               </div>
               <div className="tool-desc">// {tool.desc}</div>
-              <ToolForm tool={tool} onResult={add} loading={loading} setLoading={setLoading}/>
+              <ToolForm key={tool.id} tool={tool} onResult={add} loading={loading} setLoading={setLoading}/>
             </>}
           </div>
           <Terminal results={results} onClear={clear}/>
