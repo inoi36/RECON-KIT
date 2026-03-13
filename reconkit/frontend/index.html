@@ -311,6 +311,8 @@ function BootScreen({onDone}){
 function ToolForm({tool,onResult,loading,setLoading}){
   const [f,setF]=useState({});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  // Reset form and loading when tool changes
+  useEffect(()=>{ setF({}); setLoading(false); },[tool?.id]);
   const run=async(ep,body)=>{
     setLoading(true);
     try{const d=await callAPI(ep,body);onResult({ok:true,tool:tool.name,out:d.output});}
@@ -487,6 +489,10 @@ function App(){
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [mode,setMode]=useState("all");
   const [tool,setTool]=useState(null);
+  
+  // Reset loading state when switching modes or tools
+  const switchMode = (m) => { setMode(m); setLoading(false); setTool(null); };
+  const switchTool = (t) => { setTool(t); setLoading(false); };
   const [results,setResults]=useState([]);
   const [loading,setLoading]=useState(false);
   const add=r=>setResults(p=>[...p,r]);
@@ -520,7 +526,7 @@ function App(){
         <div className={`overlay${sidebarOpen?" open":""}`} onClick={()=>setSidebarOpen(false)}/>
 
         {/* SIDEBAR */}
-        <Sidebar mode={mode} setMode={setMode} selected={tool} onSelect={setTool}
+        <Sidebar mode={mode} setMode={switchMode} selected={tool} onSelect={switchTool}
           isOpen={sidebarOpen} onClose={()=>setSidebarOpen(false)}/>
 
         {/* MAIN */}
