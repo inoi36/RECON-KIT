@@ -325,7 +325,7 @@ function ToolForm({tool,onResult,loading,setLoading}){
       {loading?<span style={{display:'flex',alignItems:'center',gap:8}}><span className="spinner"/>{ll}</span>:l}
     </button>
   );
-  const Fld=({label,id,ph,type="text",dv,sty})=>(
+  const Fld=(label,id,ph,type="text",dv,sty)=>(
     <div className="form-group" style={sty}>
       <label className="form-label">{label}</label>
       <input className="form-input" type={type} placeholder={ph} defaultValue={dv||""}
@@ -342,25 +342,25 @@ function ToolForm({tool,onResult,loading,setLoading}){
       </span>
     </div>
   );
+  const f_row=(...items)=><div className="form-row">{items}</div>;
   const forms={
-    nmap:<>{UNAVAILABLE("NMAP SCANNER")}</>,
-    traceroute:<>{UNAVAILABLE("TRACEROUTE")}</>,
-    whois:<>{UNAVAILABLE("WHOIS LOOKUP")}</>,
-    shodan:<><div className="form-row"><Fld label="Search Query" id="query" ph="apache port:80 country:IN"/><Fld label="API Key" id="api_key" type="password" ph="Shodan API Key" dv="u5i4Han5YrvMZQLb3Q63OtJAicYkmXeW"/></div><Btn l="SEARCH SHODAN" ll="SEARCHING..." fn={()=>run("/api/shodan",{query:get('query'),api_key:get('api_key')||"u5i4Han5YrvMZQLb3Q63OtJAicYkmXeW"})}/></>,
-    whois:<><div className="form-row"><Fld label="Domain" id="domain" ph="example.com"/></div><Btn l="WHOIS QUERY" ll="QUERYING..." fn={()=>run("/api/whois",{domain:get('domain')})}/></>,
-    dns:<><div className="form-row"><Fld label="Domain" id="domain" ph="example.com"/><div className="form-group" style={{maxWidth:150}}><label className="form-label">Record Type</label><select className="form-select" ref={el=>{if(el)refs.current['record_type']=el;}}>{["A","AAAA","MX","NS","TXT","CNAME","SOA","PTR"].map(r=><option key={r}>{r}</option>)}</select></div></div><Btn l="DNS RESOLVE" ll="RESOLVING..." fn={()=>run("/api/dns",{domain:get('domain'),record_type:get('record_type')||"A"})}/></>,
-    subdomain:<><div className="form-row"><Fld label="Domain" id="domain" ph="example.com"/></div><Btn l="ENUMERATE SUBDOMAINS" ll="ENUMERATING..." fn={()=>run("/api/subdomain",{domain:get('domain')})}/></>,
-    ipgeo:<><div className="form-row"><Fld label="IP Address" id="ip" ph="8.8.8.8"/></div><Btn l="GEOLOCATE" ll="LOCATING..." fn={()=>run("/api/ipgeo",{ip:get('ip')})}/></>,
-    reverseip:<><div className="form-row"><Fld label="IP Address" id="ip" ph="93.184.216.34"/></div><Btn l="REVERSE LOOKUP" ll="REVERSING..." fn={()=>run("/api/reverseip",{ip:get('ip')})}/></>,
-    harvester:<><div className="form-row"><Fld label="Domain" id="domain" ph="example.com"/><Fld label="Sources" id="sources" ph="google,bing" dv="google,bing"/></div><Btn l="HARVEST" ll="HARVESTING..." fn={()=>run("/api/harvester",{domain:get('domain'),sources:get('sources')||"google,bing"})}/></>,
-    hibp:<><div className="form-row"><Fld label="Email" id="email" ph="target@example.com"/><Fld label="HIBP API Key" id="api_key" type="password" ph="Optional"/></div><Btn l="CHECK BREACHES" ll="CHECKING..." fn={()=>run("/api/hibp",{email:get('email'),api_key:get('api_key')||""})}/></>,
-    ssl:<><div className="form-row"><Fld label="Domain" id="domain" ph="example.com"/><Fld label="Port" id="port" type="number" ph="443" dv="443" sty={{maxWidth:120}}/></div><Btn l="ANALYZE SSL" ll="ANALYZING..." fn={()=>run("/api/ssl",{domain:get('domain'),port:parseInt(get('port'))||443})}/></>,
-    wayback:<><div className="form-row"><Fld label="URL" id="url" ph="https://example.com"/></div><Btn l="ARCHIVE QUERY" ll="FETCHING..." fn={()=>run("/api/wayback",{url:get('url')})}/></>,
-    banner:<><div className="form-row"><Fld label="Host / IP" id="host" ph="example.com"/><Fld label="Port" id="port" type="number" ph="80" dv="80" sty={{maxWidth:120}}/></div><Btn l="GRAB BANNER" ll="GRABBING..." fn={()=>run("/api/banner",{host:get('host'),port:parseInt(get('port'))||80})}/></>,
-    traceroute:<><div className="form-row"><Fld label="Host / IP" id="host" ph="example.com or 8.8.8.8"/></div><Btn l="TRACE ROUTE" ll="TRACING..." fn={()=>run("/api/traceroute",{host:get('host')})}/></>,
-    dorking:<><div className="form-row"><Fld label="Query" id="query" ph='intitle:"index of"'/><Fld label="Site (optional)" id="site" ph="example.com"/></div><Btn l="GENERATE DORKS" ll="GENERATING..." fn={()=>run("/api/dorking",{query:get('query'),site:get('site')||""})}/></>,
+    nmap:      ()=><>{UNAVAILABLE("NMAP SCANNER")}</>,
+    traceroute:()=><>{UNAVAILABLE("TRACEROUTE")}</>,
+    whois:     ()=><>{f_row(Fld("Domain","domain","example.com"))}<Btn l="WHOIS QUERY" ll="QUERYING..." fn={()=>run("/api/whois",{domain:get('domain')})}/></>,
+    shodan:    ()=><>{f_row(Fld("Search Query","query","apache port:80 country:IN"),Fld("API Key","api_key","Shodan API Key","password","u5i4Han5YrvMZQLb3Q63OtJAicYkmXeW"))}<Btn l="SEARCH SHODAN" ll="SEARCHING..." fn={()=>run("/api/shodan",{query:get('query'),api_key:get('api_key')||"u5i4Han5YrvMZQLb3Q63OtJAicYkmXeW"})}/></>,
+    dns:       ()=><>{f_row(Fld("Domain","domain","example.com"),<div className="form-group" style={{maxWidth:150}}><label className="form-label">Record Type</label><select className="form-select" ref={el=>{if(el)refs.current['record_type']=el;}}>{["A","AAAA","MX","NS","TXT","CNAME","SOA","PTR"].map(r=><option key={r}>{r}</option>)}</select></div>)}<Btn l="DNS RESOLVE" ll="RESOLVING..." fn={()=>run("/api/dns",{domain:get('domain'),record_type:get('record_type')||"A"})}/></>,
+    subdomain: ()=><>{f_row(Fld("Domain","domain","example.com"))}<Btn l="ENUMERATE SUBDOMAINS" ll="ENUMERATING..." fn={()=>run("/api/subdomain",{domain:get('domain')})}/></>,
+    ipgeo:     ()=><>{f_row(Fld("IP Address","ip","8.8.8.8"))}<Btn l="GEOLOCATE" ll="LOCATING..." fn={()=>run("/api/ipgeo",{ip:get('ip')})}/></>,
+    reverseip: ()=><>{f_row(Fld("IP Address","ip","93.184.216.34"))}<Btn l="REVERSE LOOKUP" ll="REVERSING..." fn={()=>run("/api/reverseip",{ip:get('ip')})}/></>,
+    harvester: ()=><>{f_row(Fld("Domain","domain","example.com"),Fld("Sources","sources","google,bing","text","google,bing"))}<Btn l="HARVEST" ll="HARVESTING..." fn={()=>run("/api/harvester",{domain:get('domain'),sources:get('sources')||"google,bing"})}/></>,
+    hibp:      ()=><>{f_row(Fld("Email","email","target@example.com"),Fld("HIBP API Key","api_key","Optional","password"))}<Btn l="CHECK BREACHES" ll="CHECKING..." fn={()=>run("/api/hibp",{email:get('email'),api_key:get('api_key')||""})}/></>,
+    ssl:       ()=><>{f_row(Fld("Domain","domain","example.com"),Fld("Port","port","443","number","443",{maxWidth:120}))}<Btn l="ANALYZE SSL" ll="ANALYZING..." fn={()=>run("/api/ssl",{domain:get('domain'),port:parseInt(get('port'))||443})}/></>,
+    wayback:   ()=><>{f_row(Fld("URL","url","https://example.com"))}<Btn l="ARCHIVE QUERY" ll="FETCHING..." fn={()=>run("/api/wayback",{url:get('url')})}/></>,
+    banner:    ()=><>{f_row(Fld("Host / IP","host","example.com"),Fld("Port","port","80","number","80",{maxWidth:120}))}<Btn l="GRAB BANNER" ll="GRABBING..." fn={()=>run("/api/banner",{host:get('host'),port:parseInt(get('port'))||80})}/></>,
+    dorking:   ()=><>{f_row(Fld("Query","query",'intitle:"index of"'),Fld("Site (optional)","site","example.com"))}<Btn l="GENERATE DORKS" ll="GENERATING..." fn={()=>run("/api/dorking",{query:get('query'),site:get('site')||""})}/></>,
   };
-  return forms[tool.id]||null;
+  const FormContent=forms[tool.id];
+  return FormContent?<FormContent/>:null;
 }
 
 function RunAllMode({onResult,clearResults}){
