@@ -6,7 +6,6 @@ import socket
 import ssl
 import requests
 import dns.resolver
-import whois as whois_lib
 import platform
 
 app = FastAPI(title="ReconKit API", version="1.0.0")
@@ -216,20 +215,17 @@ def run_whois(req: WhoisRequest):
         except Exception:
             pass
 
-        # Fallback: python-whois library
+        # Fallback: whois-json API
         try:
-            w = whois_lib.whois(_d)
-            for key, value in w.items():
-                if not value: continue
-                if isinstance(value, list):
-                    parts = [v.strftime("%Y-%m-%d %H:%M UTC") if hasattr(v,"strftime") else str(v) for v in value]
-                    value = ", ".join(parts)
-                elif hasattr(value, "strftime"):
-                    value = value.strftime("%Y-%m-%d %H:%M UTC")
-                output += f"  {key:<25}: {value}\n"
-            return {"output": output}
-        except Exception as e2:
-            raise HTTPException(status_code=500, detail=f"WHOIS lookup failed: {str(e2)}")
+            r2 = requests.get(f"https://whois.freeaiapi.xyz/?name={_d}", timeout=10)
+            if r2.status_code == 200:
+                data2 = r2.json()
+                for k, v in data2.items():
+                    if v: output += f"  {k:<25}: {v}\n"
+                return {"output": output}
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"WHOIS lookup failed for {_d}")
 
     except HTTPException:
         raise
