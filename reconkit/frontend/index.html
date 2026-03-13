@@ -309,6 +309,8 @@ function BootScreen({onDone}){
 }
 
 function ToolForm({tool,onResult,loading,setLoading}){
+  const refs=useRef({});
+  const get=(id)=>refs.current[id]?.value||"";
   const [f,setF]=useState({});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
 
@@ -327,8 +329,7 @@ function ToolForm({tool,onResult,loading,setLoading}){
     <div className="form-group" style={sty}>
       <label className="form-label">{label}</label>
       <input className="form-input" type={type} placeholder={ph} defaultValue={dv||""}
-        onBlur={e=>set(id,type==="number"?parseInt(e.target.value)||0:e.target.value)}
-        onChange={e=>set(id,type==="number"?parseInt(e.target.value)||0:e.target.value)}/>
+        ref={el=>{if(el)refs.current[id]=el;}}/>
     </div>
   );
   const UNAVAILABLE = (name) => (
