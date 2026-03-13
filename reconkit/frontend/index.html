@@ -308,11 +308,10 @@ function BootScreen({onDone}){
   );
 }
 
-function ToolForm({tool,onResult,loading,setLoading}){
+function ToolForm({tool,onResult}){
   const refs=useRef({});
   const get=(id)=>refs.current[id]?.value||"";
-  const [f,setF]=useState({});
-  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const [loading,setLoading]=useState(false);
 
   const run=async(ep,body)=>{
     setLoading(true);
