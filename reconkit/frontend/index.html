@@ -326,8 +326,8 @@ function ToolForm({tool,onResult,loading,setLoading}){
   const Fld=({label,id,ph,type="text",dv,sty})=>(
     <div className="form-group" style={sty}>
       <label className="form-label">{label}</label>
-      <input className="form-input" type={type} placeholder={ph}
-        value={f[id]!==undefined ? f[id] : (dv||"")}
+      <input className="form-input" type={type} placeholder={ph} defaultValue={dv||""}
+        onBlur={e=>set(id,type==="number"?parseInt(e.target.value)||0:e.target.value)}
         onChange={e=>set(id,type==="number"?parseInt(e.target.value)||0:e.target.value)}/>
     </div>
   );
