@@ -138,25 +138,74 @@ def run_nmap(req: NmapRequest):
 @app.post("/api/shodan")
 def run_shodan(req: ShodanRequest):
     try:
-        import shodan
-        api = shodan.Shodan(req.api_key)
-        results = api.search(req.query)
-        output = f"Total Results: {results['total']}\n"
+        import re
+        query = req.query.strip()
+        output = f"Shodan Intel for: {query}\n"
         output += "=" * 60 + "\n\n"
-        for r in results['matches'][:10]:
-            output += f"  IP        : {r['ip_str']}\n"
-            output += f"  Port      : {r.get('port', 'N/A')}\n"
-            output += f"  Org       : {r.get('org', 'N/A')}\n"
-            output += f"  Country   : {r.get('location', {}).get('country_name', 'N/A')}\n"
-            output += f"  OS        : {r.get('os', 'N/A')}\n"
-            output += f"  Updated   : {r.get('timestamp', 'N/A')}\n"
-            banner = r.get('data', '')[:300].replace('\n', ' ')
-            if banner:
-                output += f"  Banner    : {banner}\n"
-            output += "-" * 60 + "\n"
+
+        # Check if query is an IP address
+        is_ip = bool(re.match(r"^(\d{1,3}\.){3}\d{1,3}$", query))
+
+        if is_ip:
+            # Use Shodan InternetDB — free, no API key needed
+            r = requests.get(f"https://internetdb.shodan.io/{query}", timeout=10)
+            if r.status_code == 200:
+                data = r.json()
+                output += f"  IP              : {data.get('ip', query)}\n"
+                ports = data.get('ports', [])
+                output += f"  Open Ports      : {', '.join(map(str, ports)) if ports else 'None found'}\n"
+                hostnames = data.get('hostnames', [])
+                output += f"  Hostnames       : {', '.join(hostnames) if hostnames else 'None'}\n"
+                tags = data.get('tags', [])
+                output += f"  Tags            : {', '.join(tags) if tags else 'None'}\n"
+                vulns = data.get('vulns', [])
+                if vulns:
+                    output += f"\n  [ VULNERABILITIES — {len(vulns)} ]\n"
+                    for v in vulns[:10]:
+                        output += f"    ⚠ {v}\n"
+                cpes = data.get('cpes', [])
+                if cpes:
+                    output += f"\n  [ CPEs / SOFTWARE ]\n"
+                    for c in cpes[:5]:
+                        output += f"    → {c}\n"
+            elif r.status_code == 404:
+                output += f"  No Shodan data found for {query}\n"
+            else:
+                output += f"  InternetDB returned: {r.status_code}\n"
+
+        else:
+            # For domain/keyword queries — try to resolve IP first, then lookup
+            try:
+                import socket
+                ip = socket.gethostbyname(query.split()[0])
+                output += f"  Resolved IP     : {ip}\n\n"
+                r = requests.get(f"https://internetdb.shodan.io/{ip}", timeout=10)
+                if r.status_code == 200:
+                    data = r.json()
+                    ports = data.get('ports', [])
+                    output += f"  Open Ports      : {', '.join(map(str, ports)) if ports else 'None found'}\n"
+                    hostnames = data.get('hostnames', [])
+                    output += f"  Hostnames       : {', '.join(hostnames) if hostnames else 'None'}\n"
+                    tags = data.get('tags', [])
+                    output += f"  Tags            : {', '.join(tags) if tags else 'None'}\n"
+                    vulns = data.get('vulns', [])
+                    if vulns:
+                        output += f"\n  [ VULNERABILITIES — {len(vulns)} ]\n"
+                        for v in vulns[:10]:
+                            output += f"    ⚠ {v}\n"
+                    cpes = data.get('cpes', [])
+                    if cpes:
+                        output += f"\n  [ CPEs / SOFTWARE ]\n"
+                        for c in cpes[:5]:
+                            output += f"    → {c}\n"
+            except Exception:
+                output += f"  Could not resolve '{query}' to an IP.\n"
+                output += f"  Tip: Enter a direct IP address for best results.\n"
+
+        output += "\n" + "=" * 60 + "\n"
+        output += "  [ SOURCE ] Shodan InternetDB (free) — internetdb.shodan.io\n"
         return {"output": output}
-    except ImportError:
-        raise HTTPException(status_code=500, detail="Shodan library not installed. Run: pip install shodan")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -535,36 +584,70 @@ def run_harvester(req: HarvesterRequest):
 @app.post("/api/hibp")
 def run_hibp(req: HIBPRequest):
     try:
-        headers = {
-            "hibp-api-key": req.api_key,
-            "User-Agent": "ReconKit-InfoGathering-Tool"
-        }
-        resp = requests.get(
-            f"https://haveibeenpwned.com/api/v3/breachedaccount/{req.email}",
-            headers=headers,
-            timeout=10
-        )
-        if resp.status_code == 404:
-            return {"output": f"✓ CLEAN: {req.email} was NOT found in any known data breaches."}
-        elif resp.status_code == 401:
-            raise HTTPException(status_code=401, detail="Invalid or missing HIBP API key. Get one at: haveibeenpwned.com/API/Key")
-        elif resp.status_code == 429:
-            raise HTTPException(status_code=429, detail="Rate limited by HIBP API. Try again in a moment.")
-        elif resp.status_code == 200:
-            breaches = resp.json()
-            output = f"⚠ BREACHED: {req.email} found in {len(breaches)} breach(es)!\n"
-            output += "=" * 60 + "\n\n"
-            for b in breaches:
-                output += f"  Breach     : {b['Name']}\n"
-                output += f"  Date       : {b['BreachDate']}\n"
-                output += f"  Pwn Count  : {b.get('PwnCount', 'N/A'):,}\n"
-                output += f"  Data Types : {', '.join(b.get('DataClasses', [])[:6])}\n"
-                output += "-" * 40 + "\n"
-            return {"output": output}
-        else:
-            raise HTTPException(status_code=resp.status_code, detail=f"HIBP API error: {resp.status_code}")
-    except HTTPException:
-        raise
+        email = req.email.strip()
+        output = f"Breach Check for: {email}\n"
+        output += "=" * 60 + "\n\n"
+        found_any = False
+
+        # Source 1: LeakCheck.io free public API
+        try:
+            r1 = requests.get(
+                f"https://leakcheck.io/api/public?check={email}",
+                timeout=10,
+                headers={"User-Agent": "ReconKit-InfoGathering-Tool"}
+            )
+            if r1.status_code == 200:
+                data = r1.json()
+                if data.get("success") and data.get("found", 0) > 0:
+                    found_any = True
+                    sources = data.get("sources", [])
+                    output += f"  ⚠ BREACHED — found in {data['found']} source(s)\n\n"
+                    output += f"  [ SOURCE: LeakCheck.io ]\n"
+                    for s in sources[:15]:
+                        output += f"    → {s}\n"
+                    output += "\n"
+                elif data.get("success"):
+                    output += f"  ✓ LeakCheck.io — Not found\n"
+        except Exception:
+            pass
+
+        # Source 2: ProxyNova COMB database
+        try:
+            r2 = requests.get(
+                f"https://api.proxynova.com/comb?query={email}&limit=5",
+                timeout=10,
+                headers={"User-Agent": "ReconKit-InfoGathering-Tool"}
+            )
+            if r2.status_code == 200:
+                data2 = r2.json()
+                count = data2.get("count", 0)
+                if count > 0:
+                    found_any = True
+                    output += f"  [ SOURCE: ProxyNova COMB Database ]\n"
+                    output += f"  ⚠ Found {count} record(s) in COMB breach database\n"
+                    lines = data2.get("lines", [])
+                    for line in lines[:5]:
+                        # Mask password for safety
+                        parts = line.split(":")
+                        if len(parts) >= 2:
+                            masked = parts[0] + ":****"
+                        else:
+                            masked = "****"
+                        output += f"    → {masked}\n"
+                    output += "\n"
+                else:
+                    output += f"  ✓ ProxyNova COMB — Not found\n"
+        except Exception:
+            pass
+
+        if not found_any:
+            output += f"\n  ✓ CLEAN: {email} was not found in checked breach databases.\n"
+
+        output += "\n" + "=" * 60 + "\n"
+        output += "  [ SOURCES ] LeakCheck.io · ProxyNova COMB\n"
+        output += "  [ NOTE ] For complete results use haveibeenpwned.com\n"
+        return {"output": output}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
